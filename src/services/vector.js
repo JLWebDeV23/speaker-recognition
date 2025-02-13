@@ -1,6 +1,7 @@
 const Meyda = require('meyda');
 const fs = require('fs');
 const wav = require('wav');
+const tf = require('@tensorflow/tfjs');
 
 class SpeakerVectorExtractor {
   constructor(options = {}) {
@@ -67,9 +68,15 @@ class SpeakerVectorExtractor {
     const features = this.extractFeatures(audioData);
     // console.log('👹 features:', features);
 
+    const normVector = tf.tensor(features).div(tf.norm(features)).arraySync();
+
+    const deltaFeatures = this.computeDelta(normVector);
+
+    const combineFeature = [...normVector, ...deltaFeatures];
+
     const vector = this.createVector(features);
     // console.log('👹 vector:', { vectorLength: vector.length, vector: vector });
-    return features;
+    return combineFeature;
   }
 
   extractFeatures(audioData) {
@@ -127,6 +134,36 @@ class SpeakerVectorExtractor {
 
     // Combine mean and std to create final vector
     return [...mean, ...std];
+  }
+
+  computeDelta(features, N = 2) {
+    const numFrames = features.length;
+    const numCoeffs = features[0].length;
+    const deltaFeatures = [];
+
+    for (let t = 0; t < numFrames; t++) {
+      const delta = new Array(numCoeffs).fill(0);
+      let denominator = 0;
+
+      for (let n = 1; n <= N; n++) {
+        const prevIndex = Math.max(0, t - n);
+        const nextIndex = Math.min(numFrames - 1, t + n);
+
+        for (let k = 0; k < numCoeffs; k++) {
+          delta[k] += n * (features[nextIndex][k] - features[prevIndex][k]);
+        }
+
+        denominator += 2 * n * n;
+      }
+
+      for (let k = 0; k < numCoeffs; k++) {
+        delta[k] /= denominator;
+      }
+
+      deltaFeatures.push(delta);
+    }
+
+    return deltaFeatures;
   }
 }
 

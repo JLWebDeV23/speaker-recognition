@@ -85,7 +85,6 @@ const upsertSample = async (files) => {
       // console.log('🧪 Vector Type:', typeof vector, 'Length:', vector.length);
     }
 
-    continue;
     try {
       await client.upsert(COLLECTION, {
         points,
@@ -103,11 +102,11 @@ async function main() {
     const audioDir = './audio';
     const files = fs.readdirSync(audioDir);
 
-    // searchSample();
+    searchSample();
 
     // createCollection();
 
-    upsertSample(files);
+    // upsertSample(files);
   } catch (error) {
     console.error('Speaker Recognition Error:', error);
   }
