@@ -33,8 +33,12 @@ const countSpeakers = (results) => {
       speakerCounts[speaker] = 1;
     }
   });
-  const totalSpeakers = Object.keys(speakerCounts).length;
+  const totalSpeakers = Object.values(speakerCounts).reduce(
+    (accumulator, currentValue) => accumulator + currentValue,
+    0
+  );
   const maxCount = Math.max(...Object.values(speakerCounts));
+  console.log('Total Speakers:', totalSpeakers, 'Max Count:', maxCount);
   const percentage = (maxCount / totalSpeakers) * 100;
   console.log('Most Frequent Speaker Percentage:', percentage.toFixed(2) + '%');
   console.log('Speaker Counts:', speakerCounts);
