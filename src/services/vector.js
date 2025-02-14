@@ -2,11 +2,12 @@ const Meyda = require('meyda');
 const fs = require('fs');
 const wav = require('wav');
 const tf = require('@tensorflow/tfjs');
+const ffmpeg = require('fluent-ffmpeg');
 
 class SpeakerVectorExtractor {
   constructor(options = {}) {
     this.options = {
-      sampleRate: wav.sampleRate, // Standard sample rate for speech 16000Hz
+      sampleRate: 16000, // Standard sample rate for speech 16000Hz
       windowSize: 512, // Power of 2, ~32ms at 16kHz
       hopSize: 256, // 50% overlap
       numMFCC: 20, // Number of MFCC coefficients
@@ -72,11 +73,16 @@ class SpeakerVectorExtractor {
 
     const deltaFeatures = this.computeDelta(normVector);
 
-    const combineFeature = [...normVector, ...deltaFeatures];
+    // const combineFeature = [...normVector, ...deltaFeatures];
+    const combinedFeatures = normVector.map((mfcc, index) =>
+      mfcc.concat(deltaFeatures[index])
+    );
 
-    const vector = this.createVector(features);
-    // console.log('👹 vector:', { vectorLength: vector.length, vector: vector });
-    return combineFeature;
+    // const gmm = new GaussianMixture(16, 200, 1e-4);
+    // gmm.fit(combinedFeatures);
+
+    // const result = this.calculateGMM(combinedFeatures);
+    return combinedFeatures;
   }
 
   extractFeatures(audioData) {
@@ -99,41 +105,12 @@ class SpeakerVectorExtractor {
 
         if (mfcc && mfcc.mfcc) {
           features.push(mfcc.mfcc);
+          // console.log('MFCC Vector Length:', mfcc.mfcc.length);
         }
       }
     }
     console.log('👹 features:', features.length);
     return features;
-  }
-
-  createVector(features) {
-    // Simple statistical approach: Calculate mean and standard deviation
-    const numFeatures = features[0].length;
-    const mean = new Float32Array(numFeatures).fill(0);
-    const std = new Float32Array(numFeatures).fill(0);
-
-    // Calculate mean
-    for (const frame of features) {
-      for (let i = 0; i < numFeatures; i++) {
-        mean[i] += frame[i];
-      }
-    }
-    for (let i = 0; i < numFeatures; i++) {
-      mean[i] /= features.length;
-    }
-
-    // Calculate standard deviation
-    for (const frame of features) {
-      for (let i = 0; i < numFeatures; i++) {
-        std[i] += Math.pow(frame[i] - mean[i], 2);
-      }
-    }
-    for (let i = 0; i < numFeatures; i++) {
-      std[i] = Math.sqrt(std[i] / features.length);
-    }
-
-    // Combine mean and std to create final vector
-    return [...mean, ...std];
   }
 
   computeDelta(features, N = 2) {
@@ -162,7 +139,7 @@ class SpeakerVectorExtractor {
 
       deltaFeatures.push(delta);
     }
-
+    console.log('👹 deltaFeatures:', deltaFeatures.length);
     return deltaFeatures;
   }
 }

@@ -18,7 +18,7 @@ const client = new QdrantClient({ url: CLOUD_URL, apiKey: KEY });
 
 const createCollection = async () => {
   await client.createCollection(COLLECTION, {
-    vectors: { size: 13, distance: 'Cosine' },
+    vectors: { size: 26, distance: 'Cosine' },
   });
 };
 
@@ -59,18 +59,13 @@ const upsertSample = async (files) => {
     if (path.extname(filePath).toLowerCase() !== '.wav') {
       wavePath = await FeatureExtractor.convertToWav(filePath);
     }
-    console.log('🦠 wavePath:', wavePath);
-    // Extract MFCC features from the wav file
-    // const vectors = await FeatureExtractor.extractMFCCFeatures(
-    //   wavePath,
-    //   audioProcessingConfig
-    // );
+    // console.log('🦠 wavePath:', wavePath);
 
     const vectors = await extractor.extractFromFile(wavePath);
     let j = 0;
     const points = [];
     for (const vector of vectors) {
-      // console.log('🐝 vector:', vector);
+      console.log('🐝 vector:', vector);
       j += 1;
       i += 1;
       points.push({
@@ -84,7 +79,7 @@ const upsertSample = async (files) => {
       });
       // console.log('🧪 Vector Type:', typeof vector, 'Length:', vector.length);
     }
-
+    continue;
     try {
       await client.upsert(COLLECTION, {
         points,
@@ -102,11 +97,11 @@ async function main() {
     const audioDir = './audio';
     const files = fs.readdirSync(audioDir);
 
-    searchSample();
+    // searchSample();
 
-    // createCollection();
+    // await createCollection();
 
-    // upsertSample(files);
+    upsertSample(files);
   } catch (error) {
     console.error('Speaker Recognition Error:', error);
   }
