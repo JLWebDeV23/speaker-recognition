@@ -22,12 +22,32 @@ const createCollection = async () => {
   });
 };
 
+const countSpeakers = (results) => {
+  const speakerCounts = {};
+
+  results.forEach((result) => {
+    const speaker = result.payload.speaker;
+    if (speakerCounts[speaker]) {
+      speakerCounts[speaker]++;
+    } else {
+      speakerCounts[speaker] = 1;
+    }
+  });
+  const totalSpeakers = Object.keys(speakerCounts).length;
+  const maxCount = Math.max(...Object.values(speakerCounts));
+  const percentage = (maxCount / totalSpeakers) * 100;
+  console.log('Most Frequent Speaker Percentage:', percentage.toFixed(2) + '%');
+  console.log('Speaker Counts:', speakerCounts);
+};
+
 const searchSample = async () => {
   const filePath = './audio3/deepgram-asteria-1736242310333.mp3';
 
   const wavePath = await FeatureExtractor.convertToWav(filePath);
 
   const vectors = await extractor.extractFromFile(wavePath);
+
+  const allResults = [];
 
   // Use the first feature vector for searching
   for (const vector of vectors) {
@@ -38,7 +58,10 @@ const searchSample = async () => {
     });
 
     console.log('🔍 Search Results:', searchResults);
+    allResults.push(...searchResults);
   }
+
+  countSpeakers(allResults);
 };
 
 const upsertSample = async (files) => {
@@ -97,11 +120,11 @@ async function main() {
     const audioDir = './audio';
     const files = fs.readdirSync(audioDir);
 
-    // searchSample();
+    searchSample();
 
     // await createCollection();
 
-    upsertSample(files);
+    // upsertSample(files);
   } catch (error) {
     console.error('Speaker Recognition Error:', error);
   }
