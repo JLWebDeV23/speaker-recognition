@@ -4,8 +4,12 @@ const path = require('path');
 const fs = require('fs');
 const { QdrantClient } = require('@qdrant/js-client-rest');
 const SpeakerVectorExtractor = require('./services/vector');
+// const SpeakerVectorExtractor = require('./services/speakerVectorExtractor');
+
+const AudioPreprocessor = require('./services/audioPreprocessor');
 
 const extractor = new SpeakerVectorExtractor();
+const preprocessor = new AudioPreprocessor();
 
 const CLOUD_URL =
   'https://a562dbf3-0ed5-40da-8ae3-74066e240d5a.us-east4-0.gcp.cloud.qdrant.io';
@@ -45,9 +49,12 @@ const countSpeakers = (results) => {
 };
 
 const searchSample = async () => {
-  const filePath = './audio3/deepgram-asteria-1736242310333.mp3';
+  const filePath = './audio3/deepgram-orpheus-1736239442328.mp3';
 
-  const wavePath = await FeatureExtractor.convertToWav(filePath);
+  const wavePath = await FeatureExtractor.convertToWav(
+    filePath,
+    '../../audio3'
+  );
 
   const vectors = await extractor.extractFromFile(wavePath);
 
@@ -57,7 +64,7 @@ const searchSample = async () => {
   for (const vector of vectors) {
     // Search for similar vectors in the collection
     const searchResults = await client.search(COLLECTION, {
-      vector: vector,
+      vector: vector.mu,
       limit: 1,
     });
 
@@ -73,7 +80,6 @@ const upsertSample = async (files) => {
 
   let i = 0;
   for (const file of files) {
-    // console.log('🔍 files:', file);
     const filePath = path.join(audioDir, file);
 
     const match = file.match(/deepgram-(\w+)-/);
@@ -84,20 +90,26 @@ const upsertSample = async (files) => {
     let wavePath = filePath;
 
     if (path.extname(filePath).toLowerCase() !== '.wav') {
-      wavePath = await FeatureExtractor.convertToWav(filePath);
+      // wavePath = await preprocessor.preprocessAudio(filePath, '../../audioWav');
+      wavePath = await FeatureExtractor.convertToWav(
+        filePath,
+        '../../audioWav'
+      );
     }
-    // console.log('🦠 wavePath:', wavePath);
 
+    console.log('🔍 wavePath:', wavePath);
     const vectors = await extractor.extractFromFile(wavePath);
+    console.log('🔍 vectors:', vectors.length, vectors);
+
     let j = 0;
     const points = [];
     for (const vector of vectors) {
-      console.log('🐝 vector:', vector);
+      // console.log('🐝 vector:', vector);
       j += 1;
       i += 1;
       points.push({
         id: i,
-        vector: vector,
+        vector: vector.mu,
         payload: {
           filename: file,
           speaker: speaker,
@@ -106,7 +118,7 @@ const upsertSample = async (files) => {
       });
       // console.log('🧪 Vector Type:', typeof vector, 'Length:', vector.length);
     }
-    continue;
+    // continue;
     try {
       await client.upsert(COLLECTION, {
         points,

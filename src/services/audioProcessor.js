@@ -9,8 +9,8 @@ const path = require('path');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 class FeatureExtractor {
-  static async convertToWav(inputPath) {
-    const outputDir = path.join(__dirname, '../../audioWav');
+  static async convertToWav(inputPath, outPath) {
+    const outputDir = path.join(__dirname, outPath);
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir);
     }
@@ -19,17 +19,17 @@ class FeatureExtractor {
       path.basename(inputPath).replace(/\.[^/.]+$/, '.wav')
     );
     return new Promise((resolve, reject) => {
-      const command = ffmpeg(inputPath)
+      ffmpeg(inputPath)
+        .audioChannels(1) // Convert to mono
+        .audioFrequency(16000) // Downsample to 16kHz
         .toFormat('wav')
         .on('end', () => {
           resolve(outputPath);
         })
-        .on('error', (error) => {
+        .on('ffmpeg error', (error) => {
           reject(error);
         })
         .save(outputPath);
-
-      return outputPath;
     });
   }
 
