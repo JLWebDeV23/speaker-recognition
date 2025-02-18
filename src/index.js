@@ -4,12 +4,13 @@ const path = require('path');
 const fs = require('fs');
 const { QdrantClient } = require('@qdrant/js-client-rest');
 const SpeakerVectorExtractor = require('./services/vector');
+const wavChunker = require('./services/wavChunker');
 // const SpeakerVectorExtractor = require('./services/speakerVectorExtractor');
 
 const AudioPreprocessor = require('./services/audioPreprocessor');
 
 const extractor = new SpeakerVectorExtractor();
-const preprocessor = new AudioPreprocessor();
+// const preprocessor = new AudioPreprocessor();
 
 const CLOUD_URL =
   'https://a562dbf3-0ed5-40da-8ae3-74066e240d5a.us-east4-0.gcp.cloud.qdrant.io';
@@ -19,6 +20,104 @@ const KEY = '2wqvMrLcuAQ1hWG57kyO55eYiQvIb_rM9mrSBTn6laRJrzgYVhbRlg';
 const COLLECTION = 'audio-fragment-collection';
 
 const client = new QdrantClient({ url: CLOUD_URL, apiKey: KEY });
+
+async function searchAudioFile(filePath) {
+  try {
+    // Initialize chunker
+    const chunker = new wavChunker({
+      chunkDuration: 10,
+      minDuration: 1,
+      outputDir: '../../audioMix/chunks',
+      temporalInterval: 10,
+    });
+
+    // Convert MP3 to WAV
+    const wavePath = await FeatureExtractor.convertToWav(
+      filePath,
+      '../../audioMix'
+    );
+
+    const chunks = await chunker.chunkWavFile(wavePath);
+
+    const searchResults = [];
+
+    for (const chunk of chunks) {
+      try {
+        const vectors = await extractor.extractFromFile(chunk.path);
+
+        for (const vector of vectors) {
+          const results = await client.search(COLLECTION, {
+            vector: vector.mu,
+            limit: 1,
+          });
+
+          // console.log('🔍 Search Results:', results);
+
+          if (results.length > 0) {
+            searchResults.push({
+              chunkInfo: chunk,
+              matchInfo: results[0],
+              vector: vector.mu,
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing chunk ${chunk.path}:`, error);
+      } finally {
+        // Clean up chunk file
+        try {
+          fs.unlinkSync(chunk.path);
+        } catch (err) {
+          console.error(`Error removing chunk file ${chunk.path}:`, err);
+        }
+      }
+    }
+
+    const speakerAssignments = analyzeSearchResults(searchResults);
+
+    // Step 4: Upsert chunks with identified speakers
+    if (speakerAssignments.length > 0) {
+      const points = speakerAssignments.map((assignment, index) => ({
+        id: `${path.basename(filePath)}-${assignment.chunkInfo.index}`,
+        vector: assignment.vector,
+        payload: {
+          filename: path.basename(filePath),
+          speaker: assignment.matchInfo.payload.speaker,
+          chunkIndex: assignment.chunkInfo.index,
+          timestamp: assignment.chunkInfo.timestamp,
+          startTime: assignment.chunkInfo.startTime,
+          duration: assignment.chunkInfo.duration,
+          confidence: assignment.matchInfo.score,
+          format: assignment.chunkInfo.format,
+        },
+      }));
+
+      // await client.upsert(COLLECTION, { points });
+    }
+
+    return speakerAssignments;
+  } catch (error) {
+    console.error('Error in search process:', error);
+    throw error;
+  }
+}
+
+function analyzeSearchResults(results) {
+  console.log('🍅 Search Results:', results);
+  // Group results by chunk and determine most likely speaker
+  const processedResults = results.map((result) => {
+    return {
+      ...result,
+      matchInfo: {
+        ...result.matchInfo,
+        score: result.matchInfo.score || 0,
+      },
+    };
+  });
+
+  // Sort by confidence score
+  return processedResults.sort((a, b) => b.matchInfo.score - a.matchInfo.score);
+}
 
 const createCollection = async () => {
   await client.createCollection(COLLECTION, {
@@ -68,7 +167,7 @@ const searchSample = async () => {
       limit: 1,
     });
 
-    console.log('🔍 Search Results:', searchResults);
+    // console.log('🔍 Search Results:', searchResults);
     allResults.push(...searchResults);
   }
 
@@ -97,9 +196,9 @@ const upsertSample = async (files) => {
       );
     }
 
-    console.log('🔍 wavePath:', wavePath);
+    // console.log('🔍 wavePath:', wavePath);
     const vectors = await extractor.extractFromFile(wavePath);
-    console.log('🔍 vectors:', vectors.length, vectors);
+    // console.log('🔍 vectors:', vectors.length, vectors);
 
     let j = 0;
     const points = [];
@@ -133,14 +232,13 @@ const upsertSample = async (files) => {
 
 async function main() {
   try {
-    const audioDir = './audio';
-    const files = fs.readdirSync(audioDir);
-
-    searchSample();
-
+    // searchSample();
     // await createCollection();
-
     // upsertSample(files);
+    const result = await searchAudioFile(
+      './audioMix/deepgram-angus-1736239269328_4OLn7fpP.mp3'
+    );
+    console.log('🇹🇼 Chunk File Process Result:', result);
   } catch (error) {
     console.error('Speaker Recognition Error:', error);
   }
