@@ -89,38 +89,6 @@ class FeatureExtractor {
 
     return this.applyGMM(reducedFeatures);
   }
-
-  // static standardizeFeatures(features) {
-  //   // Calculate mean and standard deviation for each dimension
-  //   const numFeatures = features[0].length;
-  //   const means = new Array(numFeatures).fill(0);
-  //   const stds = new Array(numFeatures).fill(0);
-
-  //   // Calculate means
-  //   features.forEach((feature) => {
-  //     feature.forEach((value, index) => {
-  //       means[index] += value;
-  //     });
-  //   });
-  //   means.forEach((sum, index) => {
-  //     means[index] /= features.length;
-  //   });
-
-  //   // Calculate standard deviations
-  //   features.forEach((feature) => {
-  //     feature.forEach((value, index) => {
-  //       stds[index] += Math.pow(value - means[index], 2);
-  //     });
-  //   });
-  //   stds.forEach((sum, index) => {
-  //     stds[index] = Math.sqrt(sum / features.length);
-  //   });
-
-  //   // Standardize features
-  //   return features.map((feature) =>
-  //     feature.map((value, index) => (value - means[index]) / (stds[index] || 1))
-  //   );
-  // }
 }
 
 module.exports = FeatureExtractor;

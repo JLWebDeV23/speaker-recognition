@@ -49,7 +49,7 @@ const countSpeakers = (results) => {
 };
 
 const searchSample = async () => {
-  const filePath = './audio3/deepgram-orpheus-1736239442328.mp3';
+  const filePath = './audio3/deepgram-asteria-1736242310333.mp3';
 
   const wavePath = await FeatureExtractor.convertToWav(
     filePath,
